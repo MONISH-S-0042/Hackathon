@@ -41,7 +41,7 @@ import requests
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field, field_validator
-
+from fastapi.responses import HTMLResponse
 ASSET_DIR = "output"
 
 # --------------------------------------------------------------------------
@@ -337,14 +337,13 @@ class IncidentReport(BaseModel):
 # --------------------------------------------------------------------------
 # Endpoints
 # --------------------------------------------------------------------------
-@app.get("/")
+@app.get("/", response_class=HTMLResponse)
 def read_root():
-    return {
-        "message": "Astram Guardian API is live.",
-        "model_loaded": model is not None,
-        "location_lookup_loaded": bool(location_lookup),
-        "category_vocab_loaded": bool(category_vocab),
-    }
+    try:
+        with open("index.html", "r", encoding="utf-8") as f:
+            return f.read()
+    except Exception as e:
+        return f"<h1>Astram Guardian Backend is Live</h1><p>Error loading frontend: {str(e)}</p>"
 
 
 @app.get("/metadata")
