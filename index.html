@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Astram Guardian | Command Center</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        #map { height: 100vh; z-index: 1; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 10px; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+        .fade-in { animation: fadeIn 0.4s ease-out; }
+    </style>
+</head>
+<body class="bg-slate-900 text-white font-sans overflow-hidden">
+
+    <div class="flex h-screen">
+
+        <div class="w-1/3 min-w-[420px] bg-slate-800 p-6 flex flex-col shadow-2xl z-10 overflow-y-auto border-r border-slate-700">
+
+            <div class="mb-5">
+                <h1 class="text-3xl font-extrabold text-blue-400 tracking-tight">Astram Guardian</h1>
+                <p class="text-sm text-slate-400 mt-1">Predictive Traffic Mitigation Engine</p>
+            </div>
+
+            <!-- Model confidence strip -->
+            <div id="modelConfidence" class="hidden bg-slate-700/40 border border-slate-600 rounded-lg px-3 py-2 mb-5 text-xs text-slate-400">
+                Loading model status…
+            </div>
+
+            <div class="bg-slate-700/50 p-5 rounded-xl mb-6 border border-slate-600 shadow-inner">
+                <h2 class="text-sm font-bold text-slate-300 uppercase tracking-wider mb-4 border-b border-slate-600 pb-2">Log Incident / Event</h2>
+
+                <form id="incidentForm" class="space-y-5">
+
+                    <div>
+                        <label class="block text-sm font-medium mb-1 text-slate-300">Incident Category</label>
+                        <select id="event_cause" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none transition">
+                            <option value="">Loading from model…</option>
+                        </select>
+                    </div>
+
+                    <div id="veh_type_container" class="transition-opacity duration-300">
+                        <label class="block text-sm font-medium mb-1 text-slate-300">Involved Vehicle Class</label>
+                        <select id="veh_type" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none transition">
+                            <option value="">Loading from model…</option>
+                        </select>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-sm font-medium mb-1 text-slate-300">Priority</label>
+                            <select id="priority" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none transition">
+                                <option value="High">High</option>
+                                <option value="Low">Low</option>
+                            </select>
+                            <p class="text-[11px] text-slate-500 mt-1">Auto-set from historical data; override if needed.</p>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1 text-slate-300">Logged Via</label>
+                            <select id="reported_by" class="w-full bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-white focus:ring-2 focus:ring-blue-500 focus:outline-none transition">
+                                <option value="citizen">Citizen Report</option>
+                                <option value="official">Official Terminal</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <label class="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+                        <input type="checkbox" id="requires_road_closure" class="w-4 h-4 rounded bg-slate-900 border-slate-600 text-blue-500 focus:ring-blue-500">
+                        Requires full road closure
+                    </label>
+
+                    <div>
+                        <label class="block text-sm font-medium mb-1 text-slate-300">Spatial Coordinates</label>
+                        <div class="flex space-x-2 mb-2">
+                            <input type="text" id="latitude" placeholder="Lat (Click Map)" class="w-1/2 bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-sm text-slate-300 focus:outline-none" readonly>
+                            <input type="text" id="longitude" placeholder="Lon (Click Map)" class="w-1/2 bg-slate-900 border border-slate-600 rounded-lg p-2.5 text-sm text-slate-300 focus:outline-none" readonly>
+                        </div>
+                        <button type="button" onclick="getLocation()" class="w-full bg-slate-600 hover:bg-slate-500 text-white font-medium py-2 rounded-lg text-sm transition shadow">
+                            📍 Fetch Device GPS
+                        </button>
+                    </div>
+
+                    <div class="border-t border-slate-600 pt-4">
+                        <button type="button" id="detourToggleBtn" class="w-full bg-slate-600 hover:bg-slate-500 text-white font-medium py-2 rounded-lg text-sm transition shadow">
+                            ➕ Add Exact Diversion Route (optional)
+                        </button>
+                        <p id="detourStatus" class="text-[11px] text-slate-500 mt-1.5"></p>
+                    </div>
+
+                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-bold py-3.5 rounded-lg mt-2 transition shadow-lg flex justify-center items-center gap-2">
+                        <span>⚡</span> Run AI Predictive Analysis
+                    </button>
+                </form>
+            </div>
+
+            <div id="resultsPanel" class="hidden flex-col gap-4">
+
+                <div id="coverageWarning" class="hidden bg-amber-900/40 border border-amber-500/50 text-amber-200 text-xs p-3 rounded-lg"></div>
+
+                <div class="bg-gradient-to-br from-red-900/80 to-slate-800 border border-red-500/50 p-5 rounded-xl shadow-lg relative overflow-hidden fade-in">
+                    <div class="absolute top-0 right-0 w-16 h-16 bg-red-500/10 rounded-full blur-xl -mr-4 -mt-4"></div>
+                    <h3 class="text-xs text-red-300 font-bold uppercase tracking-widest mb-1">Estimated Clearance Window</h3>
+                    <div class="flex items-baseline gap-2">
+                        <span id="durationDisplay" class="text-4xl font-black text-red-400">--</span>
+                        <span class="text-red-300/80 font-medium">Minutes</span>
+                    </div>
+                    <p id="rangeDisplay" class="text-xs text-slate-400 mt-1"></p>
+                    <p id="locationContextDisplay" class="text-xs text-slate-400 mt-2 font-medium">Locating street data…</p>
+                </div>
+
+                <div id="modelInputPanel" class="bg-slate-700/30 border border-slate-600 p-4 rounded-xl text-xs text-slate-400 fade-in">
+                    <h3 class="text-[11px] text-slate-300 font-bold uppercase tracking-widest mb-2">What the model actually used</h3>
+                    <div id="modelInputContent" class="space-y-1"></div>
+                </div>
+
+                <div class="bg-gradient-to-br from-blue-900/60 to-slate-800 border border-blue-500/40 p-5 rounded-xl shadow-lg flex-1 fade-in">
+                    <div class="flex items-center gap-2 mb-4 border-b border-blue-500/30 pb-3">
+                        <span class="text-xl">📋</span>
+                        <h3 class="text-sm text-blue-300 font-bold uppercase tracking-widest">Tactical Dispatch Playbook</h3>
+                    </div>
+                    <ul id="playbookList" class="space-y-3 text-sm list-none p-0"></ul>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="flex-1 relative bg-slate-950">
+            <div id="map"></div>
+        </div>
+
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://127.0.0.1:8000';
+
+        let metadata = null;
+        let placeMode = 'incident'; // 'incident' | 'detour_start' | 'detour_end'
+        let detourPoints = { start: null, end: null };
+
+        // ---------------------------------------------------------------
+        // 1. LOAD MODEL METADATA (single source of truth for dropdowns)
+        // ---------------------------------------------------------------
+        async function loadMetadata() {
+            try {
+                const res = await fetch(`${API_BASE_URL}/metadata`);
+                metadata = await res.json();
+
+                const causeSelect = document.getElementById('event_cause');
+                causeSelect.innerHTML = metadata.event_causes
+                    .map(c => `<option value="${c.value}">${c.label}</option>`).join('');
+
+                const vehSelect = document.getElementById('veh_type');
+                vehSelect.innerHTML = metadata.vehicle_types
+                    .map(v => `<option value="${v.value}">${v.label}</option>`).join('');
+
+                updateVehicleVisibility();
+                updatePriorityDefault();
+
+                const conf = document.getElementById('modelConfidence');
+                if (metadata.model_metrics) {
+                    const m = metadata.model_metrics;
+                    conf.innerHTML = `Model validated on ${m.test_set_size} historical events &middot; ` +
+                        `R&sup2; ${m.r2_score} &middot; avg error &plusmn;${Math.round(m.mean_absolute_error_minutes)} min. ` +
+                        `Treat predictions as directional, especially for long-tail incidents.`;
+                    conf.classList.remove('hidden');
+                }
+            } catch (err) {
+                console.error('Failed to load /metadata', err);
+                document.getElementById('event_cause').innerHTML = '<option value="">Could not reach backend</option>';
+            }
+        }
+
+        function updateVehicleVisibility() {
+            const cause = document.getElementById('event_cause').value;
+            const container = document.getElementById('veh_type_container');
+            const noVehicle = metadata && metadata.no_vehicle_causes.includes(cause);
+            container.style.opacity = noVehicle ? '0.4' : '1';
+            document.getElementById('veh_type').disabled = !!noVehicle;
+        }
+
+        function updatePriorityDefault() {
+            if (!metadata) return;
+            const cause = document.getElementById('event_cause').value;
+            const def = metadata.default_priority_by_cause[cause];
+            if (def) document.getElementById('priority').value = def;
+        }
+
+        document.getElementById('event_cause').addEventListener('change', () => {
+            updateVehicleVisibility();
+            updatePriorityDefault();
+        });
+
+        loadMetadata();
+
+        // ---------------------------------------------------------------
+        // 2. MAP
+        // ---------------------------------------------------------------
+        const map = L.map('map').setView([12.9716, 77.5946], 12);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; CARTO'
+        }).addTo(map);
+
+        let incidentMarker = null;
+        let detourStartMarker = null;
+        let detourEndMarker = null;
+        let impactCircle = null;
+
+        function updateIncidentCoordinates(lat, lng) {
+            document.getElementById('latitude').value = lat;
+            document.getElementById('longitude').value = lng;
+            if (incidentMarker) map.removeLayer(incidentMarker);
+            if (impactCircle) map.removeLayer(impactCircle);
+            incidentMarker = L.marker([lat, lng]).addTo(map);
+            map.flyTo([lat, lng], 15, { duration: 1 });
+        }
+
+        function getLocation() {
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => updateIncidentCoordinates(pos.coords.latitude.toFixed(6), pos.coords.longitude.toFixed(6)),
+                    () => alert('Please allow location access or click on the map to drop a pin.')
+                );
+            }
+        }
+
+        const greenIcon = new L.Icon({
+            iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+            iconSize: [25, 41], iconAnchor: [12, 41],
+            className: 'hue-rotate-[90deg]'
+        });
+
+        map.on('click', (e) => {
+            const lat = e.latlng.lat.toFixed(6);
+            const lng = e.latlng.lng.toFixed(6);
+
+            if (placeMode === 'incident') {
+                updateIncidentCoordinates(lat, lng);
+            } else if (placeMode === 'detour_start') {
+                if (detourStartMarker) map.removeLayer(detourStartMarker);
+                detourStartMarker = L.marker([lat, lng], { icon: greenIcon }).addTo(map).bindPopup('Diversion start').openPopup();
+                detourPoints.start = { lat: parseFloat(lat), lon: parseFloat(lng) };
+                placeMode = 'detour_end';
+                document.getElementById('detourStatus').innerText = 'Diversion start set. Click the map again for the diversion end point.';
+            } else if (placeMode === 'detour_end') {
+                if (detourEndMarker) map.removeLayer(detourEndMarker);
+                detourEndMarker = L.marker([lat, lng], { icon: greenIcon }).addTo(map).bindPopup('Diversion end').openPopup();
+                detourPoints.end = { lat: parseFloat(lat), lon: parseFloat(lng) };
+                placeMode = 'incident';
+                document.getElementById('detourStatus').innerText = 'Diversion route set. Exact turn-by-turn directions will be included.';
+            }
+        });
+
+        document.getElementById('detourToggleBtn').addEventListener('click', () => {
+            if (placeMode === 'incident' && !detourPoints.start) {
+                placeMode = 'detour_start';
+                document.getElementById('detourStatus').innerText = 'Click the map to set the diversion START point.';
+            } else {
+                // reset
+                detourPoints = { start: null, end: null };
+                if (detourStartMarker) map.removeLayer(detourStartMarker);
+                if (detourEndMarker) map.removeLayer(detourEndMarker);
+                placeMode = 'incident';
+                document.getElementById('detourStatus').innerText = '';
+            }
+        });
+
+        // ---------------------------------------------------------------
+        // 3. SUBMIT
+        // ---------------------------------------------------------------
+        document.getElementById('incidentForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const lat = document.getElementById('latitude').value;
+            const lng = document.getElementById('longitude').value;
+            if (!lat || !lng) {
+                alert('⚠️ Please select an incident location on the map first.');
+                return;
+            }
+
+            const causeVal = document.getElementById('event_cause').value;
+            const payload = {
+                event_cause: causeVal,
+                veh_type: document.getElementById('veh_type').disabled ? 'others' : document.getElementById('veh_type').value,
+                latitude: parseFloat(lat),
+                longitude: parseFloat(lng),
+                is_planned: causeVal === 'public_event',
+                reported_by: document.getElementById('reported_by').value,
+                requires_road_closure: document.getElementById('requires_road_closure').checked,
+                priority: document.getElementById('priority').value,
+            };
+            if (detourPoints.start && detourPoints.end) {
+                payload.detour_start_lat = detourPoints.start.lat;
+                payload.detour_start_lon = detourPoints.start.lon;
+                payload.detour_end_lat = detourPoints.end.lat;
+                payload.detour_end_lon = detourPoints.end.lon;
+            }
+
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+            const originalBtnText = submitBtn.innerHTML;
+            submitBtn.innerHTML = 'Analyzing Node Data…';
+            submitBtn.disabled = true;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/predict_impact`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const data = await response.json();
+
+                if (response.ok && data.status === 'success') {
+                    renderResults(data, lat, lng);
+                } else {
+                    alert('⚠️ Server validation error: ' + JSON.stringify(data.detail || data));
+                }
+            } catch (error) {
+                console.error('Fetch error:', error);
+                alert('⚠️ Could not reach the backend. Is `uvicorn main:app` running?');
+            } finally {
+                submitBtn.innerHTML = originalBtnText;
+                submitBtn.disabled = false;
+            }
+        });
+
+        function renderResults(data, lat, lng) {
+            document.getElementById('resultsPanel').classList.remove('hidden');
+            document.getElementById('resultsPanel').classList.add('flex');
+
+            document.getElementById('durationDisplay').innerText = data.predicted_duration_minutes;
+
+            const range = data.prediction_range;
+            document.getElementById('rangeDisplay').innerText = range
+                ? `Likely between ${range.low_estimate_minutes} – ${range.high_estimate_minutes} minutes (model uncertainty band)`
+                : '';
+
+            document.getElementById('locationContextDisplay').innerText =
+                `📍 ${data.context_display.blocked_road}, ${data.context_display.affected_area}`;
+
+            const ctx = data.context_model_input;
+            document.getElementById('modelInputContent').innerHTML = `
+                <div>Corridor (model input): <span class="text-slate-300">${ctx.matched_corridor || 'unknown'}</span> (${ctx.matched_corridor_distance_km ?? '?'} km away)</div>
+                <div>Nearest named road (for diversion): <span class="text-slate-300">${ctx.nearest_named_corridor_for_diversion || 'none found'}</span> (${ctx.nearest_named_corridor_distance_km ?? '?'} km away)</div>
+                <div>Zone: <span class="text-slate-300">${ctx.matched_zone || 'unknown'}</span> (${ctx.matched_zone_distance_km ?? '?'} km away)</div>
+                <div>Police station: <span class="text-slate-300">${ctx.matched_police_station || 'unknown'}</span> (${ctx.matched_police_station_distance_km ?? '?'} km away)</div>
+                <div>Priority used: <span class="text-slate-300">${data.priority_used}</span></div>
+            `;
+
+            const warnBox = document.getElementById('coverageWarning');
+            if (ctx.outside_known_coverage_area) {
+                warnBox.classList.remove('hidden');
+                warnBox.innerText = '⚠️ This location is far from anywhere in the training data — prediction confidence is low.';
+            } else {
+                warnBox.classList.add('hidden');
+            }
+
+            const playbookList = document.getElementById('playbookList');
+            playbookList.innerHTML = '';
+            data.dispatch_playbook.forEach(instruction => {
+                const li = document.createElement('li');
+                li.className = 'text-slate-200 bg-blue-950/30 p-3 rounded border-l-4 border-blue-500 font-medium fade-in';
+                li.innerHTML = instruction.replace(/^([^:]+:)/, '<span class="text-blue-300 font-bold">$1</span>');
+                playbookList.appendChild(li);
+            });
+
+            if (impactCircle) map.removeLayer(impactCircle);
+            impactCircle = L.circle([lat, lng], {
+                color: '#ef4444',
+                fillColor: '#ef4444',
+                fillOpacity: 0.2,
+                weight: 2,
+                radius: Math.min(data.predicted_duration_minutes * 3, 800)
+            }).addTo(map);
+        }
+    </script>
+</body>
+</html>

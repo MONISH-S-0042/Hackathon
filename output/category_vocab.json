@@ -1,0 +1,60 @@
+{
+  "event_cause": [
+    "Debris",
+    "Fog / Low Visibility",
+    "accident",
+    "congestion",
+    "construction",
+    "debris",
+    "others",
+    "pot_holes",
+    "procession",
+    "protest",
+    "public_event",
+    "road_conditions",
+    "test_demo",
+    "tree_fall",
+    "vehicle_breakdown",
+    "vip_movement",
+    "water_logging"
+  ],
+  "veh_type": [
+    "auto",
+    "bmtc_bus",
+    "heavy_vehicle",
+    "ksrtc_bus",
+    "lcv",
+    "others",
+    "private_bus",
+    "private_car",
+    "taxi",
+    "truck"
+  ],
+  "priority": [
+    "High",
+    "Low"
+  ],
+  "event_type": [
+    "planned",
+    "unplanned"
+  ],
+  "default_priority_by_cause": {
+    "Debris": "High",
+    "Fog / Low Visibility": "High",
+    "accident": "Low",
+    "congestion": "High",
+    "construction": "High",
+    "debris": "High",
+    "others": "High",
+    "pot_holes": "High",
+    "procession": "Low",
+    "protest": "Low",
+    "public_event": "High",
+    "road_conditions": "High",
+    "test_demo": "Low",
+    "tree_fall": "Low",
+    "vehicle_breakdown": "High",
+    "vip_movement": "Low",
+    "water_logging": "High"
+  }
+}

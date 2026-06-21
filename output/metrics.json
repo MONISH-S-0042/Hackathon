@@ -1,0 +1,70 @@
+{
+  "metrics": {
+    "test_set_size": 523,
+    "mean_absolute_error_minutes": 142.53,
+    "root_mean_squared_error_minutes": 408.16,
+    "r2_score": 0.15
+  },
+  "top_feature_importances": [
+    {
+      "feature": "cat__event_cause_vehicle_breakdown",
+      "importance": 0.1612
+    },
+    {
+      "feature": "num__latitude",
+      "importance": 0.1547
+    },
+    {
+      "feature": "num__longitude",
+      "importance": 0.1484
+    },
+    {
+      "feature": "cat__authenticated_no",
+      "importance": 0.0851
+    },
+    {
+      "feature": "num__hour_of_day",
+      "importance": 0.0835
+    },
+    {
+      "feature": "cat__authenticated_yes",
+      "importance": 0.0488
+    },
+    {
+      "feature": "num__day_of_week",
+      "importance": 0.0474
+    },
+    {
+      "feature": "cat__event_cause_accident",
+      "importance": 0.0328
+    },
+    {
+      "feature": "cat__veh_type_unknown",
+      "importance": 0.0237
+    },
+    {
+      "feature": "cat__event_cause_others",
+      "importance": 0.0138
+    },
+    {
+      "feature": "cat__zone_unknown",
+      "importance": 0.0113
+    },
+    {
+      "feature": "cat__veh_type_bmtc_bus",
+      "importance": 0.0059
+    },
+    {
+      "feature": "cat__police_station_Yeshwanthpura",
+      "importance": 0.0059
+    },
+    {
+      "feature": "cat__requires_road_closure_True",
+      "importance": 0.0057
+    },
+    {
+      "feature": "cat__event_cause_tree_fall",
+      "importance": 0.0057
+    }
+  ]
+}

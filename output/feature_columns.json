@@ -1,0 +1,21 @@
+{
+  "categorical_features": [
+    "event_type",
+    "event_cause",
+    "veh_type",
+    "priority",
+    "corridor",
+    "zone",
+    "police_station",
+    "requires_road_closure",
+    "authenticated"
+  ],
+  "numeric_features": [
+    "latitude",
+    "longitude",
+    "hour_of_day",
+    "day_of_week",
+    "is_weekend"
+  ],
+  "target": "duration_minutes (predicted, log1p-transformed internally)"
+}
